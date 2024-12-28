@@ -7,6 +7,7 @@ format:
       toc: true
       toc_depth: 3
       toc_float: true
+      self-contained: true
 editor: visual
 ---
 
@@ -41,7 +42,7 @@ turnout_data<-turnout_data|>
 Each row of `turnout_data` contains information on a single municipality. The variables of interest for this analysis are as follows:
 
 | Variable | Description |
-|----|----|
+|------------------------------------|------------------------------------|
 | turnout | \% turnout |
 | TVdummy | Does this municipality have television access yet? (**This is the main explanatory variable of interest**) |
 | logpop | Log of municipality population |
