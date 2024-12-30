@@ -7,6 +7,7 @@ format:
     smaller: true
     toc: true
     toc-depth: 3
+    self-contained: true
 code-annotations: select
 ---
 
