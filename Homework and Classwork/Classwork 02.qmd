@@ -1,0 +1,20 @@
+---
+title: "Class"
+format:
+  html:
+    theme: [default, custom_styles]
+    df-print: paged
+    smaller: true
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    embed-resources: true
+    code-link: true
+    code-tools: true
+code-annotations: select
+---
+
+```{r setup, include=FALSE }
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+

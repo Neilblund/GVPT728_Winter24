@@ -25,7 +25,7 @@ library(broom)
 
 ```
 
-# Random Number Generation
+# Simulations
 
 This document will walk through some methods for exploring models using Monte Carlo simulations. A Monte Carlo simulation uses repeated random sampling to understand the range of plausible outcomes from a random process. The specifics will change depending on the process we're trying to model, but the basic steps are going to be:
 
