@@ -18,3 +18,60 @@ slide-level: 3
 ```{r setup, include=FALSE }
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 ```
+
+# What is a model?
+
+## Models as simplified accounts
+
+# The goals of modeling
+
+## Describing
+
+## Hot take
+
+"Descriptive regressions" are real and good
+
+## Hot take: example
+
+::::: columns
+::: {.column width="50%"}
+
+:::
+
+::: {.column width="50%"}
+![](images/angrist_quantiles.png)
+
+:::
+:::::
+
+
+```{r, cache=TRUE}
+source('~/GVPT728_Winter24/Additional Code and Data/angrist_quantiles.r')
+
+```
+
+## Predicting
+
+## Explaning
+
+# Goals
+
+-   Level 1: critically engage with research
+
+-   Level 2: know what not to do, what to look out for, and how to address common problems in research
+
+-   Level 3: pick up a new method when you need it
+
+# Course outline
+
+-   Part 1: Basics
+
+    -   Regression model assumptions
+
+    -   Talking about significance
+
+-   Part 2: Non-linear models
+
+-   Part 3: Dealing with omitted variables
+
+# Structure of a class

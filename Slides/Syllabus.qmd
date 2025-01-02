@@ -4,10 +4,13 @@ format:
   html:
     theme: [default, custom_styles]
     df-print: paged
+    downloads: [pdf, html, qmd]
     smaller: true
     toc: true
     toc-depth: 3
     self-contained: true
+    embed-resources: true
+    search: false
 code-annotations: select
 ---
 
@@ -15,7 +18,7 @@ code-annotations: select
 
 -   **Credits:** 3 Hours
 
--   **Meeting Time:** MTWRF from 6:00 to 8:45 PM (January 2nd through January 22rd)
+-   **Meeting Time:** MTWRF from 6:00 to 8:45 PM (January 2nd through January 22nd)
 
 -   **Location:** Online over Zoom
 
@@ -28,6 +31,8 @@ code-annotations: select
 # Course description
 
 This course will introduce you to advanced topics in modeling and inference. Over the next three weeks, we will develop the tools to identify viable research questions, formulate hypotheses, and answer the question of what causes a social-science outcome of interest. At the conclusion of the course you will write and present a replication and extension or novel analysis that applies the skills you learned.
+
+# 
 
 ## Required Materials
 

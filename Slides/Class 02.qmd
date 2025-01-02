@@ -13,9 +13,27 @@ format:
     self-contained: true
 code-annotations: select
 slide-level: 3
+editor: 
+  markdown: 
+    wrap: sentence
 ---
-
 
 ```{r setup, include=FALSE }
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 ```
+
+# Assumptions
+
+1.  The regression model is linear in the parameters.
+2.  The values of the regressors, the X’s, are fixed, or X values are independent of the error term. Here, this means we require zero covariance between ui and each X variable.
+3.  For given X’s, the mean value of disturbance ui is zero.
+4.  For given X’s, the variance of ui is constant or homoscedastic.
+5.   For given X’s, there is no autocorrelation, or serial correlation, between the disturbances.
+6.  The number of observations n must be greater than the number of parameters to be estimated.
+7.  There must be sufficient variation in the values of the X variables.
+8.  There is no exact collinearity between the X variables.
+9.  The model is correctly specified, so there is no specification bias.
+10. The stochastic (disturbance) term ui is normally distributed.
+
+(From Gujarati, D.N. and Porter, D.C. (2009) Basic Econometrics.
+5th Edition, McGraw Hill Inc., New York.)
