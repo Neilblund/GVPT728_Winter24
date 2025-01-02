@@ -2,12 +2,13 @@
 title: "Tidyverse Refresher"
 format:
   html:
-    theme: [default, custom_styles]
     df-print: paged
     smaller: true
     toc: true
     toc-depth: 3
-    self-contained: true
+    embed-resources: true
+    code-link: true
+    code-tools: true
 code-annotations: select
 ---
 
