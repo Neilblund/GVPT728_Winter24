@@ -178,6 +178,10 @@ Use `coefmat` to calculate the proportion of simulations where we would **fail t
 ```{r}
 # Your code here
 
+coefmat|>
+  filter(term == "X")|>
+  summarise(p_greater_than_05 = mean(p.value>=.05))
+
 
 ```
 
@@ -187,6 +191,10 @@ Using the results from the previous simulation, estimate how often a 95% confide
 
 ```{r}
 # Your code here
+
+coefmat|>
+  filter(term == "X")|>
+  summarise(outside_ci = mean(conf.low > 0.1  | conf.high < 0.1))
 
 
 ```
@@ -203,6 +211,26 @@ set.seed(999)
 iterations<-1000
 N <-  500 
 # write the loop below: 
+beta_0 <- 1  # the y intercept
+beta_1<- 0 # the effect of X on Y
+coefs<-list()
+
+for(i in 1:iterations){
+  X <- rnorm(N, mean=0, sd=1) # an independent variable
+  e <- rnorm(N, mean=0, sd=1) # the error term 
+  Y <- beta_0 + X * beta_1 + e # the dependent variable
+  mod<- lm(Y ~ X)
+  coefs[[i]]<- tidy(mod, conf.int = TRUE)
+}
+
+
+
+# combine results from all iterations
+coefmat<-bind_rows(coefs, .id='iteration')
+
+coefmat|>
+  filter(term == "X")|>
+  summarise(mean(p.value<.05))
 
 
 
@@ -211,9 +239,9 @@ N <-  500
 
 # Comparing multiple conditions
 
-In many cases, we'll want to compare results from a model under a wide range of different conditions so we can explore things like the relationship between sample size and Type II error rates. We can use a nested loop to run simulations across a range of different parameter values. 
+In many cases, we'll want to compare results from a model under a wide range of different conditions so we can explore things like the relationship between sample size and Type II error rates. We can use a nested loop to run simulations across a range of different parameter values.
 
-For instance, here's how we would run the same simulation at a sample size of 50, 500, and 5000: 
+For instance, here's how we would run the same simulation at a sample size of 50, 500, and 5000:
 
 ```{r}
 
@@ -302,9 +330,6 @@ result_frame|>
 
 
 ```
-
-
-
 
 ## Using a simulation function
 
@@ -500,7 +525,7 @@ genFunc <- function(corr_x=0, e_sd=1, N=1000, betas=c(1,1)){
   X = MASS::mvrnorm(N, mu=c(0, 0), Sigma=Sigma)
   e = rnorm(N, 0 , sd=e_sd) # the variance of the error term
   Y <- intercept  + X %*% betas + e
-  mod <- lm(Y ~ X[,1]) # Omitting X[,2] from the regressin model
+  mod <- lm(Y ~ X[,1]) # Omitting X[,2] from the regression model
   coefs<-tidy(mod, conf.int = TRUE, conf.level = .95)
   return(coefs)
 
@@ -557,11 +582,9 @@ results |>
 
 ```
 
-
 ## Question 4
 
 Rewrite the code above so that $\beta_2$ is negative instead of positive. How does this impact your results?
-
 
 ```{r}
 # Code
@@ -569,5 +592,3 @@ Rewrite the code above so that $\beta_2$ is negative instead of positive. How do
 
 
 ```
-
-
