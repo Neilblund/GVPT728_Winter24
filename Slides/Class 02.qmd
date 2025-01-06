@@ -123,7 +123,7 @@ $$\frac{\sum\limits_{i=1}^n (\bar{X} - X_{i}) (\bar{Y} - Y_{i}) }{n}$$
 . . .
 
 | parent | parent - mean(parent) | offspring | offspring - mean(offspring) | product |
-|---------------|---------------|---------------|---------------|---------------|
+|----|----|----|----|----|
 | 6 | -4 | 4 | -5 | 20 |
 | 6 | -4 | 7 | -2 | 8 |
 | 6 | -4 | 10 | 1 | -4 |
@@ -331,9 +331,9 @@ So what are they?
 
 -   **Homoskedasticity**
 
--   Exogeneity
+-   **Limited Multicollinearity**
 
--   limited multicollinearity
+-   Exogeneity
 
 # Linearity
 
@@ -626,7 +626,7 @@ data <- rnorm_multi(n = N ,
 
 data$Y = data$X1 + data$X2  + data$X3 + rnorm(N)
 
-lm(Y ~ X1 + X2 + X3, data=data)%>%as_flextable()
+lm(Y ~ X1 + X2 + X3, data=data)|>as_flextable()
 
 
 ```
@@ -657,7 +657,8 @@ ggplot(data,aes(x=X1, y=Y)) + geom_point()  + ylim(-8, 8)  +xlim(-3, 3)
 ```{r}
 ggplot(data,aes(x=X_controlled, y=Y_controlled)) + geom_point() +
   ylim(-8, 8)  +
-  xlim(-3, 3)
+  xlim(-3, 3) +
+  theme_minimal()
 
 ```
 :::
