@@ -18,15 +18,10 @@ code-annotations: select
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 ```
 
-
-Load in some functions and code from the previous class: 
-
 ```{r}
 library(tidyverse)
 library(ggdist)
 library(broom)
-
-
 
 ```
 
@@ -191,7 +186,7 @@ plotCoefs<-function(results, term){
 Here's an example of doing the same simulation we ran above using the `runSim` function. Instead of generating a nested loop, we just set up a list-of-lists containing the arguments that we want to pass to `genFunc`.
 
 ```{r}
-# a data generation function with defaults (replaces the inner loop in the prior examples)
+# a data generation function with defaults (replaces the inner loop in the prior examples)  
 genFunc <- function(N, betas){
   X = cbind(rnorm(N, 0, 1))
   intercept = 1
@@ -203,10 +198,12 @@ genFunc <- function(N, betas){
 
 }
 
+
 plist<-list(
   'N=50,   beta_1=0.05' =  list(betas=0.05, N=50),
   'N=100,  beta_1=0.05'=   list(betas=0.05, N=100),
-  'N=1000, beta_1=0.05' =  list(betas=0.05, N=1000)
+  'N=1000, beta_1=0.05' =  list(betas=0.05, N=1000),
+  "N=5000 beta_1 = 0.05 " =  list(betas=0.05, N=5000)
 )
 
 
@@ -220,6 +217,9 @@ results<- runSim(func=genFunc,
                  parmlist = plist,
                  seed = 999
 )
+
+
+
 ```
 
 Now, we can summarize the results for each condition:
@@ -241,7 +241,7 @@ What if we try different values for `beta_1` while using a sample size of 50?
 plist<-list(
   'N=50, beta_1=0.05' = list(betas= .05, N=50),
   'N=50, beta_1=0.1' =  list(betas= 0.1, N=50),
-  'N=50, beta_1=0.5' =  list(betas= 0.5, N=50)
+  'N=50, beta_1=1' =  list(betas= 1, N=50)
 )
 
 results<- runSim(func=genFunc, 
@@ -390,21 +390,49 @@ results |>
 
 ```
 
-## Question 
+## Question
 
 Rewrite the code above so that $\beta_2$ is negative instead of positive. How does this impact your results?
 
 ```{r}
 # Code
+plist<-list(
+  'r=-.7' =list(corr_x = -0.7, betas= c(1,-1)),
+  'r=  0' =list(corr_x =  0.0,betas= c(1,-1)),
+  'r= .7' =list(corr_x =  0.7, betas= c(1,-1))
+)
 
+
+results<-runSim( func=genFunc,
+                 parmlist = plist,
+                 seed = 999
+                 )
+
+results |> 
+  filter(term == "X[, 1]") |>
+  # calculate the bias (estimated beta_1 minus the value set in the data generating function)
+  mutate(bias = estimate - 1)|>
+  ggplot(aes(x = bias, y = condition, )) +
+  stat_halfeye(
+    alpha = .5,
+    width = .6,
+    .width = 0,
+    justification = -.2
+  ) +
+  geom_boxplot(width = .15, outlier.shape = NA) +
+  theme_bw() +
+  geom_vline(xintercept = 0,
+             lty = 2,
+             col = 'red') +
+  xlab("Estimated Beta_1 - Actual B_1") +
+  ggtitle("Effects of omitted variable bias on coefficient estimates")
 
 
 ```
 
+# Modeling heteroskedasticity
 
-# Modeling heteroscedasticity
-
-We can model heteroscedastic data by making the variance of $\epsilon$ depend on values of one of the predictors: 
+We can model heteroskedastic data by making the variance of $\epsilon$ depend on values of one of the predictors:
 
 ```{r}
 N = 100
@@ -412,14 +440,16 @@ betas <- 0.5
 intercept = 1
 
 data<-tibble(X = cbind(rnorm(N, 0, 1)),
-       e = rnorm(N, 0 , exp(X ) ),
+       e = rnorm(N, 0 , exp(X )),
        Y = intercept  + X %*% betas + e)
+
+
 
 model<-lm(Y ~ X, data=data)
 
 ```
 
-A quick visual inspection of the results can give us a pretty good sense that there's a problem here: 
+A quick visual inspection of the results can give us a pretty good sense that there's a problem here:
 
 ```{r}
 ggplot(data, aes(x=X, y=Y)) + 
@@ -431,14 +461,9 @@ ggplot(data, aes(x=X, y=Y)) +
 
 ```
 
+That said, we can also use some diagnostic plots to get a better sense of the results. We want to pay especially close attention to the residuals vs. fitted plot, and scale-location plot. In the first, heteroskedasticity will show up as results that have greater spread at different predicted values of Y. In the second, you want to see a mostly horizontal line.
 
-
-
-
-
-That said, we can also use some diagnostic plots to get a better sense of the results. We want to pay especially close attention to the residuals vs. fitted plot, and scale-location plot. In the first, heteroskedasticity will show up as results that have greater spread at different predicted values of Y. In the second, you want to see a mostly horizontal line. 
-
-Compare the heteroskedastic data: 
+Compare the heteroskedastic data:
 
 ```{r}
 
@@ -446,7 +471,8 @@ plot(model, which=c(1, 3))
 
 
 ```
-Vs. data without heteroskedasticity: 
+
+Vs. data without heteroskedasticity:
 
 ```{r}
 
@@ -460,14 +486,9 @@ plot(model2, which=c(1, 3))
 
 ```
 
+## Simulation: What does heteroskedasticity do to our results?
 
-
-
-
-## Simulation: What does heteroskedasticity do to our results? 
-
-
-To run a simulation, we can nest our data generating loop inside a function. We'll also include an argument that allows us to vary the sample size: 
+To run a simulation, we can nest our data generating loop inside a function. We'll also include an argument that allows us to vary the sample size:
 
 ```{r}
 
@@ -485,8 +506,6 @@ genFunc <- function(N=1000, homoskedastic=FALSE){
 }
 
 ```
-
-
 
 Now, we can set up a list of parameters to pass along and then run our simulation.
 
@@ -507,12 +526,14 @@ results<- runSim(func=genFunc,
 )
 
 aggregateResults(results)|>
-  filter(term=="X")
+  filter(term=="X")|>
+  select(condition, starts_with("proportion"))
 
 
 
 ```
 
+Now plot the results...
 
 ```{r}
 
@@ -532,12 +553,4 @@ results|>
 
 ```
 
-
-So what is happening here and how concerned should we be? 
-
-
-
-
-
-
-
+So what is happening here and how concerned should we be?
