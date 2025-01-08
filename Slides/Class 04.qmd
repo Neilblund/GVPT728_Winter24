@@ -1,5 +1,5 @@
 ---
-title: "Non-Linearity, Interactions, and Missing Data"
+title: "Missing Data"
 date: last-modified
 author: Neil Lund
 format:
@@ -29,9 +29,11 @@ library(tidyquant)
 library(countrycode)
 library(labelled)
 library(ggsci)
+library(mice)
+library(modelsummary)
 ```
 
-```{r, cache=TRUE}
+```{r, eval=FALSE, echo=FALSE}
 
 # get data from the world bank WDI 
 wdi_data<-WDI::WDI(indicator=c(
@@ -40,7 +42,9 @@ wdi_data<-WDI::WDI(indicator=c(
                           'pop_over_65'= 'SP.POP.65UP.TO.ZS',
                           'adult_literacy'  = 'SE.ADT.LITR.ZS',
                           'life_exp_at_birth' ='SP.DYN.LE00.IN',
-                          'oil_rents' = 'NY.GDP.PETR.RT.ZS'
+                          'oil_rents' = 'NY.GDP.PETR.RT.ZS',
+                          'libdem_score' = 'SP.DYN.IMRT.IN',
+                          'population' = 'SP.POP.TOTL'
                           ), 
                 start=2020, end=2020
 )
@@ -56,11 +60,10 @@ vdem<-vdemdata::vdem|>
   rename(libdem_score =v2x_libdem)
 
 data<-wdi_data|>
-  full_join(vdem)|>
+  right_join(vdem)|>
   select(-country_id)
 
 data|>
-  select(gdp_pcap:libdem_score)|>
   map(.f=is.na)|>
   map(.f=mean)
 
@@ -69,9 +72,16 @@ data|>
 var_label(data$libdem_score) <-'Liberal Democracy Score'
 
 
+saveRDS(data, file='~/GVPT728_Winter24/Additional Code and Data/indicators.rds')
+
 
 ```
 
+```{r, echo=FALSE}
+
+data<-readRDS('~/GVPT728_Winter24/Additional Code and Data/indicators.rds')
+
+```
 
 # Missing data
 
@@ -80,23 +90,33 @@ Missing data is extremely common in applied research, how should we deal with it
 ::: {.column width="50%"}
 :::
 
-::::: columns
-::: {.column width="50%"}
--   The default here is simply dropping missing data from analyses
-:::
+# Missing data
 
+The default here is simply dropping missing data from analyses (listwise deletion), but does this make sense to do?
+
+::::: columns
 ::: {.column width="50%"}
 ```{r, cache=TRUE}
 
 
 
 data|>
-  select(-iso2c, -iso3c)|>
+  select(-iso2c, -iso3c, -year)|>
   visdat::vis_miss() +
   ggtitle("Missing World Bank Data for 2020") 
 
 
 
+
+```
+:::
+
+::: {.column width="50%" style="fragment"}
+```{r}
+
+
+lm(libdem_score ~ gini, data=data)|>
+  summary()
 
 ```
 :::
@@ -121,9 +141,11 @@ Our approach to missing data will depend on our theory of why it exists.
 
 ### Missing completely at random: examples
 
+MCAR means there is genuinely no "pattern" to the missingness.
+
 :::::: columns
 ::: {.column width="50%"}
--   A get out the vote mailer got lost by the postal service
+-   Only a random subset of countries are studied in each "wave"
 
 -   The power went out during a telephone survey
 
@@ -145,112 +167,188 @@ Data that are missing completely at random are actually fairly easy to deal with
 
 ### Missing at random
 
--   In a two wave survey of voter turnout: people who say they're unlikely to vote are also less likely to respond to follow-up
+MAR means there is a pattern, but its based on something you can predict
 
--   In a study of congressional twitter accounts: older members never sign up
+-   In our global development data: Gini coefficients are generally not collected for wealthy countries
+
+-   In a study of congressional twitter accounts: older members never sign up for the service
 
 -   In a study of social movement participation: members of vulnerable groups decline to answer a question about protest
 
 . . .
 
-All these cases suggest that we can fully account for the characteristic that causes missing data. We have data from the first wave for our turnout study, we have data on member age from our congress study, and we can identify who belongs to vulnerable groups.
+All these cases suggest that we can fully account for the characteristic that causes missing data. We have data on wealth for the global development data, we have data on member's age from our congress study, and we can identify who belongs to vulnerable groups.
 
 ### Missing not at random
 
--   In a turnout study: low propensity voters less likely to be contacted
+MNAR means that there is something systematic and *unobserved* that causes the missingness. This is especially tricky if the missingness depends on expected values of the missing data itself.
+
+-   In the development data: if World Bank doesn't collect data on highly unequal countries
 
 -   In a study of protest effectiveness: smaller events rarely generate news coverage
 
--   In a study of the effect of education on income, people with low income expectations don't work
+-   In a study of the effect of education on income, people with low income expectations never enter the labor force
 
 . . .
 
 We don't really even have partial data on the cause of missingness here: we might suspect that "low potential income" cause someone to decide not to enter the labor force, but we never observe wages for that person in the first place so this is potentially untestable.
 
-# Simulations
-
-Generating three types of missing data. The MCAR case is totally random, the MX case is dependent only on values of X (the predictor), and the MY case is dependent on Y (the outcome)
-
-::: {.column width="50%"}
-```{r, echo=T, fig.align='center'}
-
-missingFunc<-function(){
-  nobs <- 1000
-  x <- rnorm(nobs)
-  y <- x *2 + rnorm(nobs)
-  d <- data.frame(y,x)
-  # Missing Completely at Random
-  d$mcar <- rbinom(nobs,1,0.7)
-  # Missing Induced by X
-  d$mx <- rbinom(nobs,1,1/(1+exp(-1-2*d$x)))
-  # Missing Induced by Y
-  d$my <- rbinom(nobs,1,1/(1+exp(-1-2*d$y)))
-  return(d)
-}
-set.seed(100)
-d<-missingFunc()
-
-
-```
-:::
-
-## Simulations
-
-```{r, fig.align="center"}
-
-mar<-d%>%filter(mx == T)%>%mutate(group = 'MAR')
-mcar<-d%>%filter(mcar == T)%>%mutate(group = 'MCAR')
-mnar<-d%>%filter(my == T)%>%mutate(group = 'MNAR')
-truth <-d%>%mutate(group = 'No missing data')
-dat<-bind_rows(mar, mcar,mnar,truth)%>%
-  mutate(group = factor(group, level=c('No missing data', 
-                                       "MCAR", 
-                                       "MAR",
-                                       "MNAR"
-                                       )))
-
-dat%>%
-  ggplot(aes(x=x,y=y)) + geom_point(alpha=.5) +
-  facet_grid(cols =vars(group)) +
-  geom_smooth(method='lm', se=F, color='orange') +
-  theme_minimal()+
-  stat_regline_equation(label.y = 4.2, label.x=-3)
-
-```
-
-## Simulations: results
+## Effects
 
 ::::: columns
-::: {.column width="50%"}
--   Simply dropping the missing observations (the default in R) is actually okay for MCAR cases
--   MAR is also okay as long as we control for the condition or conditions that causes missingness
-    -   This is still a very strong assumption!
--   MNAR produces biased results
+::: {.column width="50%" style="fragment"}
+-   MCAR: No bias. Missingness just adds "noise"
+
+-   MAR: Potentially biased estimates, but also may be fixable
+
+-   MNAR: Potentially biased estimates, but harder to address
 :::
 
 ::: {.column width="50%"}
-```{r}
-full <- lm(y~x, data=d)
-mcar <- lm(y~x, data=d[d$mcar == 1,])
-misx <- lm(y~x, data=d[d$mx == 1,])
-misy <- lm(y~x, data=d[d$my == 1,])
+```{r, fig.align="center", echo=FALSE}
 
-huxreg("Full"= full,"MCAR"= mcar,"MAR" =misx,"MNAR"= misy)
+missingFunc<-function(){
+  nobs <- 500
+  betas <- c(10, -2)
+  Sigma <-matrix(c(1, 0, 0, 1), ncol=2)
+  X = MASS::mvrnorm(nobs, mu=c(0, 0), Sigma=Sigma)
+  intercept <-5
+  data<-tibble(
+  data.frame(X),
+  e = rnorm(nobs, 0 , sd=3),
+  Y = c(intercept  + X %*% betas + e)
+  )
+  colnames(data)<-c("x", "x2", "e", "y")
+  
+  mfunc<-rbinom(nobs, 1, 1)
+  nmfunc<-rbinom(nobs, 1, 0)
+  
+  nm <- bind_cols(data,
+                  missing = 1,
+                  type = 0
+                  )
+  
+  mperc <- .3
+  # 1/3rd obs Missing Completely at Random
+  mcar <-  bind_cols(
+    data, 
+    missing = ifelse(seq(nobs)%in%sample(nobs, size=nobs*mperc), mfunc, nmfunc),
+    type =1
+    )
+  # Missing Induced by expected value of Y
+  mar <- 
+    bind_cols(
+      data, 
+      missing= ifelse(data$y< quantile(data$y, mperc), mfunc, nmfunc),
+      type =2
+      )
+  
+  # Missing Induced by x itself
+  mnar <- bind_cols(
+    data,
+    missing = ifelse(data$x2< quantile(data$x2, mperc), mfunc, nmfunc),
+    type =3
+    )
+  
+  labels<-c(
+    'full data',
+    'missing completely at random',
+    'conditionally missing'
+          #  'missing at random' ,
+  #  , 'missing not at random'
+            
+            )
+  d<-bind_rows(nm, mcar,mar
+               #, mnar
+               )|>
+    mutate(type = factor(type, labels=labels))
+  
+  return(d)
+}
+
+
+set.seed(999)
+d<-missingFunc()|>
+  mutate(missing = factor(missing, labels=c("Missing", "Not missing")))
+ggplot(d, aes(x=x, y=y, color=missing, shape=missing)) + 
+  geom_point() +
+  facet_wrap(~type) +
+  geom_smooth(data = d|>filter(missing=="Not missing"), aes(x=x, y=y), 
+              method='lm', color='black', se=FALSE
+  ) + 
+  theme_minimal() +
+  scale_shape_manual(values=c(1, 16)) +
+  scale_color_manual(values=c('lightgrey', 'orange')) +
+  stat_regline_equation(label.y = 15, label.x=-3, data=d|>
+                          filter(missing=="Not missing"),
+                        color='black'
+                        )
+  
+
+
 ```
 :::
 :::::
 
-# Possible solutions
-
-There's typically no way of knowing why data are missing. So what can be done?
+# Potentially problematic fixes
 
 ## Listwise deletion: the default
 
--   Simply dropping observations with missing data *can* work as long as the data are missing at random or missing conventional on something in the regression model.
+-   Simply dropping observations with missing data *can* work as long as the data are missing completely at random.
 
 -   Standard errors will be larger than they would be if you had all those observations, but the slopes are unbiased in a linear model
 
     -   However, that assumption may not hold in a logit or probit model
+
+## Indicator method
+
+Set the missing variable to 0 and include an indicator for missingness
+
+::::: columns
+::: {.column width="50%"}
+-   Can work under certain circumstances, but potentially very biased even under MCAR conditions
+:::
+
+::: {.column width="50%"}
+```{r}
+
+data$gini_missing <- is.na(data$gini)
+data$gini_zeroes <- ifelse(is.na(data$gini), 0, data$gini)
+
+lm(libdem_score ~ gini_zeroes + gini_missing, data=data)|>
+      summary()
+
+```
+:::
+:::::
+
+## Single imputation
+
+We could set missing values at their means, or could try using a regression model to predict the missing predictors using other data.
+
+::::: columns
+::: {.column width="50%"}
+-   This would produce unbiased estimates under the MCAR or MAR case if we had the right model
+
+-   But it would seriously underestimate the *uncertainty* in our data because we fail to incorporate the uncertainty from the imputations
+:::
+
+::: {.column width="50%"}
+```{r}
+
+imputation_model<-lm(gini ~ gdp_pcap + pop_over_65 + libdem_score  , data=data)
+
+data$gini_imputed <- predict(imputation_model, newdata=data)
+
+lm(libdem_score ~ gini_imputed, data=data)|>
+  summary()
+
+
+```
+:::
+:::::
+
+# Better Alternatives
 
 ## Extreme bounds
 
@@ -262,35 +360,45 @@ One approach is to assume nothing and just ask "how bad could it get?"
 
 ## Extreme bounds
 
+::::: columns
+::: {.column width="50%"}
 ```{r, echo=T}
-    # upper bound
-    d$y_ub <- ifelse(d$my ==1, max(d$y), d$y)
-    # lower bound
-    d$y_lb <- ifelse(d$my ==1, min(d$y), d$y)
 
-    model_lb<-lm(y_lb~x, data=d)
-    model_ub<-lm(y_ub~x, data=d)
+min_gini<-ifelse(is.na(data$gini), min(data$gini, na.rm=T), data$gini)
+max_gini<-ifelse(is.na(data$gini), max(data$gini, na.rm=T), data$gini)
 
-    # plausible upper bound
-    d$y_pub <- ifelse(d$my ==1, quantile(d$y, .75), d$y)
-    # plausible lower bound
-    d$y_plb <- ifelse(d$my ==1, quantile(d$y, .25), d$y)
+mincase<-lm(libdem_score ~ min_gini, data=data)
+observed<-lm(libdem_score ~ gini, data=data)
+maxcase<-lm(libdem_score ~ max_gini, data=data)
 
-    model_plb<-lm(y_plb~x, data=d)
-    model_pub<-lm(y_pub~x, data=d)
-```
 
-### Extreme bounds
-
-```{r}
-huxreg("extreme LB" = model_lb, 
-       "extreme UB"= model_ub, 
-       "plausible LB" =model_plb, 
-       "plausible UB" =model_pub)
 
 ```
+:::
 
-### Extreme bounds
+::: {.column width="50%"}
+```{r, echo=FALSE}
+
+
+cmap = list( 'min_gini' ='gini',
+             'gini' = 'gini',
+             'max_gini' = 'gini'
+            )
+
+modelsummary(
+  list('min'= mincase, 
+       'observed' = observed, 
+       'max' = maxcase),
+  estimate  = "{estimate}",  
+             statistic ='conf.int',
+             conf_level = .95,        
+  coef_map = cmap,
+             gof_omit = 'F|RMSE|R2$|AIC|Log.Lik.')
+```
+:::
+:::::
+
+## Extreme bounds
 
 -   Advantage: minimal assumptions (especially for limited extreme bounds on limited DVs)
 
@@ -298,260 +406,96 @@ huxreg("extreme LB" = model_lb,
 
 This really works best when you have a very small number of missing observations. If you can show that your results are similar even under the worst case scenario assumptions, then you're in a pretty good spot.
 
-## Explicitly model the missing observations
+## MICE
 
--   Set all missing X values to zero, and including a dummy for missingness in the regression
+::::: columns
+::: {.column width="70%"}
+Multiple Imputation Through Chained Equations
 
--   For categorical predictors, this may be the best approach
+1.  Replace all missing data with a placeholder (like the column mean)
 
--   But may produce biased coefficients for multiple regression models if other covariates operate differently on missing vs. non-missing respondents
+2.  Reset one column (call it X) to its observed values
 
-## Imputation
+3.  Use a model to impute X
 
-If we have additional information on missing observations, we can potentially use it to infer those values. The simplest version of this would be interpolation in time series data: if you have values before and after, you can probably guess what came in between.
+4.  Replace X with the predicted values from step 3, then move on to the next column.
 
-```{r}
+5.  Repeat for all columns with missing data
 
+6.  Do all of these steps multiple times to create multiple versions of the data
+:::
 
+::: {.column width="50%"}
+-   MICE can handle complex relationships between missing observations
+:::
+:::::
 
-```
+## MICE
 
-### Imputation
+::::: columns
+::: {.column width="50%"}
+-   Do a little cleanup and rescaling (we want to drop the other imputed variables, along with un-informative columns like the country name, and log the population)
+:::
 
-For instance, imagine we want to estimate the effect of primary school education rates on infant mortality, but very low income countries are unlikely to report consistent data on enrollment rates.
-
-```{r}
-set.seed(100)
-vdem<-vdemdata::vdem%>%
-  filter(year >= 2000)%>%
-  select(
-    year,
-    country_name,
-  #  v2capolit,
-         v2x_polyarchy, 
-      #  v2peprisch,
-         e_wb_pop,
-   #      v2elvaptrn,
-    e_peinfmor,
-    e_peaveduc,
-    e_gdppc,
-    
-         e_pelifeex)%>%
-  group_by(country_name)%>%
-  arrange(year)%>%
-  fill(year,
-       country_name,
-      # v2capolit,
-       v2x_polyarchy, 
-     #  v2peprisch,
-       e_wb_pop,
-      # v2elvaptrn,
-       e_gdppc,
-       e_peinfmor,
-     e_wb_pop, 
-       e_pelifeex,.direction='down')%>%
-  slice_tail(n=1)%>%
-  ungroup()%>%
-  filter(complete.cases(.))%>%
-  rename(
-        # pol_associations = v2capolit ,
-         polyarchy = v2x_polyarchy, 
-        # primary_school = v2peprisch,
-         population = e_wb_pop,
-        # turnout = v2elvaptrn,
-         infant_mortality = e_peinfmor,
-         life_expectancy = e_pelifeex)
-
-
-
-vdem%>%select(-year)%>%slice_head(n=10)
-
-
-```
-
-### Imputation
-
-I've simulated this kind of missingness in the data set below by dropping the primary enrollment for 80% of cases in the bottom 25% of GDP. Since GDP is correlated with both infant mortality and primary enrollment, this is likely to bias our results if GDP is not controlled in the regression model.
-
-```{r}
-set.seed(1000)
-
-missing_case<-rbinom(nrow(vdem),1, .8)
-lexp<-ifelse(vdem$e_gdppc < quantile(vdem$e_gdppc,.25), missing_case, 0)
-
-vdem_modified<-vdem%>%
-    
-    mutate(e_peaveduc =ifelse(lexp == 0, e_peaveduc, NA))%>%
-    select(-country_name, -year, -e_gdppc)
-
-vdem_modified%>%slice_head(n=10)
-```
-
-### Imputation
-
-We *could* build a single regression model to impute the missing data. The result does get much closer to the "true" mean for % primary school enrollment (although some of the predicted values are implausible)
-
-```{r, echo=T}
-
-
-# the predictive model
-model<-lm(e_peaveduc ~
-            log(population) +   
-            life_expectancy + 
-            infant_mortality +
-            polyarchy,
-          data=vdem_modified)
-
-predicted<-predict(model, newdata=vdem_modified)
-
-vdem_modified$education_imputed <- with(vdem_modified, 
-                                       ifelse(
-                                         is.na(e_peaveduc),
-                                         predicted,
-                                         e_peaveduc)) 
-
-```
-
-```{r, echo=FALSE}
-df<-data.frame("group"=rep(c('observed','imputed','real'), each=nrow(vdem)),
-           "values" = c(vdem_modified$e_peaveduc, vdem_modified$education_imputed, vdem$e_peaveduc)
-           )
-
-ggplot(df, aes(y=values, x=group, fill=group)) + 
-
-    geom_boxplot(
-    width = 0.12,
-    # removing outliers
-    outlier.color = NA,
-    alpha = 0.5
-  ) +
-    stat_dots(
-    # ploting on left side
-    side = "left",
-    # adjusting position
-    justification = 1.1,
-    # adjust grouping (binning) of observations
-    binwidth = 0.25
-  ) +
-    scale_fill_tq() +
-  theme_tq() 
-
-
-```
-
-### Imputation
-
-And the result of a regression model is also very close to the true coefficient. However! The standard error is probably unreasonably small here. The missing observations are estimates, so we need to do something to reflect the additional uncertainty that results from including them.
-
-```{r}
-
-
-model_0<-lm(infant_mortality ~ e_peaveduc, data=vdem)
-model_1<-lm(infant_mortality ~ e_peaveduc, data=vdem_modified)
-model_2<-lm(infant_mortality ~ education_imputed, data=vdem_modified)
-
-huxreg(list("real"=model_0, "observed" = model_1,"imputed"=model_2))
-
-```
-
-### Imputation
-
-Instead of using a single regression model, we can simulate this additional uncertainty using Multiple Imputation for Chained Equations (MICE). MICE works by creating multiple slightly different versions of the imputed data, and then pooling the regression results across each of them. The MICE package does this more-or-less automatically (andw)
-
-```{r, echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
+::: {.column width="50%"}
+```{r, cache=TRUE}
 library(mice)
-imputed<-mice(vdem_modified, method="pmm")
-fit<-with(imputed,lm(infant_mortality~ e_peaveduc))
-# get results from pooled estimates:
+mdata<-data|>
+  filter(!is.na(libdem_score))|>
+  select(-country, -iso2c, -iso3c, -year, 
+         -gini_zeroes, 
+         -gini_imputed,
+         -gini_missing
+         )|>
+  mutate(population = log(population),
+         gdp_pcap = log(gdp_pcap)
+         )
+mice_data<- mice(mdata, maxit = 35, m = 10, seed = 1,      
+                 printFlag =FALSE
+                 )
+
+
+```
+:::
+:::::
+
+## MICE
+
+```{r}
+
+stripplot(mice_data, gini, pch = 19, xlab = "Imputation number")
+
+```
+
+## MICE
+
+Finally, we can fit the data and then pool the results to account for uncertainty in our imputed estimates:
+
+```{r}
+
+fit <- with(mice_data, lm(libdem_score ~ gini))
+
 summary(pool(fit))
 
-```
-
-```{r, include=FALSE}
-library(mice)
-imputed<-mice(vdem_modified%>%
-                select(-education_imputed)%>%mutate(population = log(population)), method="pmm")
-fit<-with(imputed,lm(infant_mortality~ e_peaveduc))
-real<-lm(infant_mortality ~   e_peaveduc,data=vdem)
-cc<-lm(infant_mortality ~ e_peaveduc ,data=vdem_modified)
-
-ccmodel<-broom::tidy(cc)%>%mutate(model='listwise deletion')
-realmodel<-broom::tidy(real)%>%mutate(model ='actual')
-pooled<-summary(pool(fit))%>%
-  data.frame()%>%
-  select(-df)%>%mutate(model='imputed')
-
-rtab<-bind_rows(ccmodel, realmodel, pooled)%>%
-  select(model,term, estimate)%>%
-  pivot_wider(names_from=model, values_from = estimate)
 
 
 ```
 
-```{r}
+In practice, we would probably want to include more information here. Especially if we have things like old data from a previous analysis, we could potentially vastly improve our predictions and limit the amount of uncertainty we had to deal with here.
 
-rtab%>%
-  huxtable()
-```
+## MICE
 
-### Imputation
+-   MICE only works for MCAR or MAR cases. In other words: if we can't create a regression model that can "explain" the missingness, then it doesn't solve anything
 
-Here's the results of re-running this same process 100 times and then calculating the difference between the real vs observed coefficients. While the imputed results may be *less* biased than the listwise deletion case, they're still not necessarily *unbiased*. Imputation isn't a cure-all.
+-   No free lunch: we need at least some data about each row.
 
-```{r, include=FALSE}
+-   More missing data = more uncertainty.
 
-mfunc<-function(method=NULL){
-  library(mice)
-  
-  missing_case<-rbinom(nrow(vdem),1, .8)
-  #lexp<-ifelse(vdem$scale_poly < quantile(vdem$scale_poly,.25), missing_case, 0)
-  #lexp<-ifelse(vdem$e_gdppc < quantile(vdem$e_gdppc,.25), missing_case, 0)
-  lexp<-ifelse(vdem$e_gdppc < quantile(vdem$e_gdppc,.25), missing_case, 0)
-  vdem_modified<-vdem%>%
-    
-    mutate(e_peaveduc =ifelse(lexp == 0, e_peaveduc, NA))%>%
-    mutate(population = log(population))%>%
-    select(-country_name, -year, -e_gdppc)
-  
-  real<-coef(lm(infant_mortality ~   e_peaveduc,data=vdem))[2]
-  
-  cc<-coef(lm(infant_mortality ~ e_peaveduc ,data=vdem_modified))[2]
-  
-  imputed<-mice(vdem_modified, method=method)
-  fit<-with(imputed,lm(infant_mortality~ e_peaveduc))
-  icoef<-summary(pool(fit))[,'estimate'][2]
-  
-  
-  df<-cbind(real, cc, icoef)
-  return(df)
-}
-
-
-res<-replicate(100, mfunc(method='pmm'))
-plt<-t(res[1,,])%>%
-  data.frame()%>%
-  mutate(`listwise deletion` = cc - real, 
-         `imputation` = icoef - real
-         )%>%
-  select(`listwise deletion`, `imputation`)%>%
-  pivot_longer(cols=everything())%>%
-  #filter(name !=real)%>%
-  ggplot(aes(x=value, fill=name)) +geom_density(alpha=.5) +
-  geom_boxplot() +
-  geom_vline(xintercept=0, lty=2, color='red') +
-  theme_minimal()
-
-
-```
-
-```{r, fig.align='center'}
-
-plt
-```
-
-## Selection problem: truncation of Y
+# Selection problem: truncation of Y
 
 What if people with a certain value of the outcome are never observed? For example: people with low expected earnings may drop out of the labor force entirely. This would cause an underestimate of the impact of education on wages because the lowest earners are never actually part of the equation. Moreover, imputation for these cases would be pretty dubious: we're already trying to create a regression model to predict the outcome!
+
+# Selection problem: truncation of Y
 
 ```{r}
 
@@ -562,7 +506,10 @@ earnings  = educ_year * 10 + rnorm(N, 0, 50)
 lfp = ifelse(earnings < quantile(earnings, .20), 0, 1)
 lfp = factor(lfp, labels=c('not in labor force', 'in labor force'))
 df<-data.frame(educ_year, earnings, lfp)
-df_comb<-bind_rows(df%>%mutate(group = "true model"), df%>%filter(lfp == "in labor force")%>%mutate(group='observed only'))
+df_comb <- bind_rows(
+  df |> mutate(group = "true model"),
+  df |> filter(lfp == "in labor force") |> mutate(group = 'observed only')
+)
 
 true_model<-lm(earnings ~ educ_year ,data=df)
 observed_model<-lm(earnings ~ educ_year ,data=df[which(lfp == "in labor force"),])
@@ -621,15 +568,15 @@ stage_2 <- lm(earnings ~ 1 + educ_year + imr,
 
 The corrected coefficients now resemble the real model (although we still need to correct the standard errors)
 
-```{r}
-huxreg("actual model"= true_model, 
+```{r, echp=FALSE}
+modelsummary(list("actual model"= true_model, 
        "complete case model" = observed_model, 
-       "heckman corrected model" = stage_2)
+       "heckman corrected model" = stage_2))
 ```
 
 ### Selection problem: Heckman model
 
-The samplSelection pacakage can estimate this in a single step, and will automatically produce corrected standard errors.
+The sampleSelection pacakage can estimate this in a single step, and will automatically produce corrected standard errors.
 
 ```{r, echo=TRUE}
 library(sampleSelection)
@@ -642,9 +589,9 @@ model<-selection(
   method='2step', data=df
           )
 # showing only the coefficients and se in formatted table
-coef(summary(model), part='outcome')%>%
-  huxtable()%>%
-  add_rownames(colname='variable')%>%
+coef(summary(model), part='outcome')|>
+  huxtable()|>
+  add_rownames(colname='variable')|>
   add_colnames("")
 
 ```
@@ -662,6 +609,8 @@ coef(summary(model), part='outcome')%>%
     -   Normal listwise deletion still works provided you can condition on the thing that causes data to be missing.
 
     -   Imputation is probably harmless for these cases
+
+# Major Takeaways
 
 -   For MNAR (missing conditional on unobserved variables):
 
