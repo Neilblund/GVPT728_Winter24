@@ -1,5 +1,5 @@
 ---
-title: "Class"
+title: "Class 6 Multilevel Model"
 format:
   html:
     theme: [default, custom_styles]
@@ -161,7 +161,7 @@ In general, do countries with majoritarian electoral systems elect fewer women?
 ```{r}
 
 
-relationship <- ggplot(vdem, aes(x = majoritarian_dummy, y = v2lgfemleg)) +
+relationship <- ggplot(vdem_cleaned, aes(x = majoritarian_dummy, y = v2lgfemleg)) +
   geom_half_point(aes(color =  majoritarian_dummy), 
                   transformation = position_quasirandom(width = 0.1),
                   side = "l", size = 1, alpha = 0.5) +
