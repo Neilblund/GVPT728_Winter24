@@ -47,6 +47,8 @@ library(modelsummary)
 
 # Data Import
 
+(you don't actually need to run this)
+
 ```{r, eval=FALSE}
 library(WDI)
 library(tidyverse)
@@ -129,11 +131,30 @@ vdem<-set_variable_labels(vdem,
 vdem_cleaned<-vdem|>
   drop_na(v2lgfemleg, v2lgqugen , wlfp , resource_rents , log_gdp_pc_ppp, e_fh_pr, e_fh_cl)
 
+#saveRDS(vdem_cleaned,file='vdem_cleaned.rds')
+
+
+```
+
+
+
+```{r}
+
+if(!file.exists('vdem_clean.rds')){
+  download.file('https://github.com/Neilblund/GVPT728_Winter24/raw/refs/heads/main/Additional%20Code%20and%20Data/vdem_cleaned.rds',
+                'vdem_clean.rds',
+                mode='wb')
+
+}
+
+vdem_cleaned<-readRDS('vdem_clean.rds')
+
 
 ```
 
 
 # Describing the main relationship
+
 
 In general, do countries with majoritarian electoral systems elect fewer women?
 
