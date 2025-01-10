@@ -1,0 +1,333 @@
+---
+title: "Class"
+format:
+  html:
+    theme: [default, custom_styles]
+    df-print: paged
+    smaller: true
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    embed-resources: true
+    code-link: true
+    code-tools: true
+code-annotations: select
+---
+
+```{r setup, include=FALSE }
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+
+## The data
+
+```{r}
+library(tidyverse) 
+library(ggeffects)       # for predicted probabilities and plots
+library(marginaleffects) # for marginal effects
+library(ggdist) # for distribution plots 
+library(modelsummary) # for model summaries
+library(labelled)
+
+#NAVCO data here: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/PLXAFY
+navco <- dataverse::get_dataframe_by_name(
+  filename = 'NAVCO 1.2 Updated.tab',
+  dataset = 'doi:10.7910/DVN/0UZOTX', 
+  server = "dataverse.harvard.edu")
+
+
+navco<-navco|>
+  filter(ONGOING==FALSE)|>
+  mutate(goal_type = case_when(
+    REGCHANGE == 1 ~ "Regime Change",
+    FSELFDET == 1 ~ "Self determination",
+    SECESSION == 1 ~ "Secession",
+    OTHER == 1 ~ "Other"
+    
+  ),
+  outcome = factor(SUCCESS, labels=c('failure', 'success')),
+  tactic = factor(VIOL, labels=c("Non-violence", "Violence")),
+  percent_pop  = `PERCENTAGEPOPULARPARTICIPATION`,
+  state_support = factor(STATESUP,labels=c("no", "yes")),
+  tactic_type = case_when(VIOL ==1 ~"Violence",
+                          VIOLENTFLANK == 1 ~ "Non-violence (flank)",
+                          VIOLENTFLANK == 0 ~ "Non-violence (no flank)"
+                            ),
+  participation_ntile = findInterval(
+    `PERCENTAGEPOPULARPARTICIPATION`,
+    
+    quantile(`PERCENTAGEPOPULARPARTICIPATION`, seq(0,.9, by=.1)))
+  )
+
+
+
+
+navco<-set_variable_labels(navco,
+                           'goal_type'  = 'Campaign goal',
+                           "outcome" = 'Campaign outcome',
+                           "tactic" = "Primary tactic",
+                           "percent_pop" = "% national population at peak",
+                           'tactic_type' = "Primary tactic",
+                           "state_support" = "Recieved Military or economic aid"
+                           )
+
+
+
+```
+
+## The simple model
+
+Predicting the likelihood of success for non violent campaigns vs. campaigns that use violence, while controlling for external support:
+
+```{r}
+model <- glm(outcome~ tactic + state_support , data = navco, family = "binomial")
+
+modelsummary(list("LPM" =model), 
+             coef_rename=TRUE,
+             coef_omit = "Intercept",
+              estimate  = "{estimate}",  
+             statistic = c("conf.int"),
+             conf_level = .95,        
+ note = "95% CI in brackets",
+ gof_omit = 'F|RMSE|R2$|AIC|Log.Lik.',
+ output ='kableExtra'
+             )
+
+```
+
+# Getting probabilities and marginal effects
+
+Coefficients from a logit or probit model aren't particularly meaningful on their own. Exponentiated logit coefficients can be interpreted as relative odds ratios, but this isn't intuitive for most people (including me). So generally, you should convert them to predicted probabilities and predicted marginal effects wherever possible. The next two sections are demonstrations of how you could get some of these estimates using just basic R commands. The final section demonstrates how you could get these same values using the `marginaleffects` package, which also includes extensive additional documentation [here](https://marginaleffects.com/).
+
+## By hand
+
+To get a predicted probability for a particular case:
+
+1.  Calculate y-hat the same way you would in a linear model
+2.  Convert to a predicted probability using the inverse logit $1/(1+exp(-x))$
+
+```{r}
+
+coefs<-coef(model)
+# baseline just uses the intercept
+linear_pred0 <- coefs["(Intercept)"]
+# now do intercept + b_1  * 1
+linear_pred1 <- coefs["(Intercept)"] + coefs['tacticViolence'] * 1 
+# now do intercept + b_1  + b2 * 1
+linear_pred3 <-  coefs["(Intercept)"] + coefs['tacticViolence'] * 1 + coefs["state_supportyes"] * 1
+
+# prediction for violent campaign with the lowest size
+1/(1+exp(-linear_pred0))
+
+# prediction for non-violent campaign at lowest size
+1/(1+exp(-linear_pred1))
+
+# prediction for non-violent campaign at second lowest size
+1/(1+exp(-linear_pred3)) 
+```
+
+Of course, for a probit or some other GLM, you would need to use a different link function. Fortunately, the glm model object itself has the inverse link function stored as one of its values. You can access it as `model$family$linkinv()`. Doing this will ensure your code is the same regardless of whether you use a different link function.
+
+```{r}
+model$family$linkinv(linear_pred0)
+
+```
+
+## Using predict
+
+R's built-in predict function can also be used to retrieve a predicted probability. By default, predict will return linear predicted values, but if you add the `type="response"` argument, R will provide the transformed prediction.
+
+The default here will simply provide predictions for every case used to estimate the model. However, if you want to predict a specific outcome, you can use the `newdata` argument to get predictions at a specified value.
+
+```{r}
+
+# predict(model, type='response') this would get you the predicted value for every observation
+
+predict(model, newdata=data.frame(tactic="Non-violence", state_support='yes'), type='response')
+
+predict(model, newdata=data.frame(tactic="Violence", state_support='yes'), type='response')
+
+
+
+```
+
+### Marginal effect
+
+Unlike a linear model, marginal effects for logit and probit models will be different depending on the levels of the predictors. In other words: the effect of a one unit change for a case where p=.01 is generally going to be smaller than the effect when p=.5. So "marginal effects" will typically have to be marginal effects for some particular case. For instance, here's the marginal effect of violence compared to non-violence when a group has external support: 
+
+```{r}
+
+case_0 <- predict(model, newdata=data.frame(tactic="Non-violence", state_support='yes'), type='response')
+
+case_1 <-predict(model, newdata=data.frame(tactic="Violence", state_support='yes'), type='response')
+case_1 - case_0
+
+```
+
+Compare this to the marginal effect when campaign size = 1
+
+```{r}
+case_2 <- predict(model, newdata=data.frame(tactic="Non-violence", state_support='no'), type='response')
+
+case_3 <-predict(model, newdata=data.frame(tactic="Violence", state_support='no'), type='response')
+case_3 - case_2
+
+```
+
+### Average marginal effect
+
+If you just want to summarize the effect for a single coefficient on the "average case", the preferred method is to use the observed values approach. So to get the average effect of change from a from violent to a non-violent campaign, I would
+
+1.  replace every value of prim_method with 0 and then get the predicted probability of success
+2.  replace every value of prim_method with 1 and then get the predicted probability of success
+3.  Get the average difference between these two scenarios
+
+```{r}
+# the data is stored in the model object as "model": 
+violent_mvmt <- replace(model$model, "tactic", values="Violence")
+non_violent_mvmt <- replace(model$model, "tactic", values="Non-violence")
+
+# get the differences
+diffs<-predict(model, newdata=non_violent_mvmt, type='response') - 
+  predict(model, newdata=violent_mvmt, type='response')
+
+mean(diffs)
+
+
+```
+
+The average effect of changing from violence to non-violence is about an 11% increase in the probability of success.
+
+For covariates that take on continuous values, you may instead want to calculate the effect of a one unit increase from the current values. For instance, to calculate the effect of moving every camp_size_est up by 1, I would run:
+
+```{r}
+
+model2 <- glm(outcome ~ tactic + state_support + percent_pop , data = navco, family = "binomial")
+
+# the original values
+p0<-model2$model
+# adding one to the current value of camp_size_est
+p1<- replace(model2$model, "percent_pop" , model2$model$percent_pop+1)
+
+# get the differences
+diffs<-predict(model2, newdata=p1, type='response') - 
+  predict(model2, newdata=p0, type='response')
+
+mean(diffs)
+
+
+```
+
+The average effect of a one unit increase in campaign size is about a 5% increase in the probability of success.
+
+## Getting Predictions
+
+We can get averaged predictions over the observed values using the `predict_response` function from `ggeffects`: 
+
+```{r}
+preds<-predict_response(model, 
+                        terms="tactic",  # prediction at all values of percent_pop
+                        margin='empirical')  # with these values at 1 and 1
+
+plot(preds)
+
+```
+
+
+
+
+
+
+## Using MarginalEffects
+
+The marginal effects package can perform this process for us and also give us an easy way to get standard errors around the effect sizes. The `avg_comparisons` command calculates the average marginal effect by default.
+
+```{r, echo=T}
+
+labs<-map(navco, .f=~attr(.x, 'label'))|>unlist()
+avg_comparisons(model2, variables='tactic')|>
+  modelsummary(coef_map = labs,
+               
+               )
+
+```
+
+If no variable is specified in the `variables` argument, it will calculate an marginal effect in the same fashion as above, and will adjust the comparison cases for different variable types automatically.
+
+```{r, echo=T}
+library(modelsummary)
+map<-list('percent_pop' ='marginal effect of one unit increase in % support',
+     'state_support' = 'marginal effect of state support (vs none)',
+     'tactic' = 'marginal effect of violent tactics (vs non-violent)'
+     )
+
+avg_comparisons(model2)|>
+  modelsummary(title='Average Marginal Efect',
+               coef_map = map,
+                note = "95% CI in brackets",
+                gof_omit = 'F|RMSE|R2$|AIC|Log.Lik.',
+                output ='kableExtra'
+               
+
+             )
+
+
+
+```
+
+This is especially helpful for models that use one or more factor variables.
+
+```{r}
+
+
+complex_model <- glm(outcome~tactic + goal_type, data = navco, family = "binomial")
+
+avg_comparisons(complex_model)
+
+
+
+
+```
+
+### Getting standard errors
+
+The default delta-method standard errors should be fine for most use cases. However, if you want simulation or bootstrapped SEs, these can be retrieved using the inferences command.
+
+```{r, cache=T}
+
+simulated<-avg_comparisons(model)|>
+  inferences(method='boot')
+
+
+posterior_draws(simulated)|>
+  ggplot(aes(x=draw, y=term)) +
+  stat_halfeye() +
+  theme_minimal() +
+  xlab("marginal effect of one unit increase in x on probability of campaign success")
+  
+
+
+```
+
+### Testing the radical flank effects hypothesis
+
+"Radical flank effects" refer to the hypothesis that more moderate social campaigns are more likely to be successful when they have a radical faction that makes them appear more respectable and mainstream. If this is the case, then you would expect to see peaceful campaigns be more successful when they have a violent campaign that operates along side them.(you can read more about this from Erica Chenowith [here](https://www.annualreviews.org/doi/full/10.1146/annurev-polisci-051421-124128))
+
+The NAVCO data includes a variable for radical flank effects. The levels of this variable are: - "no radical flank" (non-violent campaign without a radical flank) - "radical flank" (non-violent campaign with a radical flank) - "primarily violent" (a primarily violent campaign)
+
+Since this has been recoded as a factor, including it in a regression model will give us k-1 coefficients. As is the case with linear models, the intercept represents the expected value of the excluded factor level, while the remaining coefficients can be interpreted as the difference between the coefficient category and the baseline category. However,
+
+```{r}
+flank_model<-glm(outcome ~ tactic_type,family='binomial' , data=navco)
+summary(flank_model)
+
+```
+
+# Question
+
+Get the average marginal effects and predicted probabilities of success for violence vs. non-violence and violent flanks vs. non-violence.
+
+```{r}
+# Code
+
+```
