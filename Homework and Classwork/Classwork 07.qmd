@@ -1,5 +1,5 @@
 ---
-title: "Class"
+title: "Class 07"
 format:
   html:
     theme: [default, custom_styles]
@@ -35,7 +35,6 @@ navco <- dataverse::get_dataframe_by_name(
   dataset = 'doi:10.7910/DVN/0UZOTX', 
   server = "dataverse.harvard.edu")
 
-
 navco<-navco|>
   filter(ONGOING==FALSE)|>
   mutate(goal_type = case_when(
@@ -43,7 +42,6 @@ navco<-navco|>
     FSELFDET == 1 ~ "Self determination",
     SECESSION == 1 ~ "Secession",
     OTHER == 1 ~ "Other"
-    
   ),
   outcome = factor(SUCCESS, labels=c('failure', 'success')),
   tactic = factor(VIOL, labels=c("Non-violence", "Violence")),
@@ -58,8 +56,6 @@ navco<-navco|>
     
     quantile(`PERCENTAGEPOPULARPARTICIPATION`, seq(0,.9, by=.1)))
   )
-
-
 
 
 navco<-set_variable_labels(navco,
@@ -196,9 +192,8 @@ mean(diffs)
 
 ```
 
-The average effect of changing from violence to non-violence is about an 11% increase in the probability of success.
 
-For covariates that take on continuous values, you may instead want to calculate the effect of a one unit increase from the current values. For instance, to calculate the effect of moving every camp_size_est up by 1, I would run:
+For covariates that take on continuous values, you may instead want to calculate the effect of a one unit increase from the current values. For instance, to calculate the average effect of increasing `percent_pop` by +1 for every observation would be: 
 
 ```{r}
 
