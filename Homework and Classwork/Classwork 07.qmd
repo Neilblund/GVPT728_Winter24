@@ -25,9 +25,9 @@ knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 library(tidyverse) 
 library(ggeffects)       # for predicted probabilities and plots
 library(marginaleffects) # for marginal effects
-library(ggdist) # for distribution plots 
-library(modelsummary) # for model summaries
-library(labelled)
+library(ggdist)          # for distribution plots 
+library(modelsummary)    # for model summaries
+library(labelled)        # for variable labels 
 
 #NAVCO data here: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/PLXAFY
 navco <- dataverse::get_dataframe_by_name(
@@ -45,7 +45,7 @@ navco<-navco|>
   ),
   outcome = factor(SUCCESS, labels=c('failure', 'success')),
   tactic = factor(VIOL, labels=c("Non-violence", "Violence")),
-  percent_pop  = `PERCENTAGEPOPULARPARTICIPATION`,
+  percent_pop  = `PERCENTAGEPOPULARPARTICIPATION` * 100,
   state_support = factor(STATESUP,labels=c("no", "yes")),
   tactic_type = case_when(VIOL ==1 ~"Violence",
                           VIOLENTFLANK == 1 ~ "Non-violence (flank)",
@@ -78,7 +78,7 @@ Predicting the likelihood of success for non violent campaigns vs. campaigns tha
 ```{r}
 model <- glm(outcome~ tactic + state_support , data = navco, family = "binomial")
 
-modelsummary(list("LPM" =model), 
+modelsummary(list("GLM" =model), 
              coef_rename=TRUE,
              coef_omit = "Intercept",
               estimate  = "{estimate}",  
@@ -112,13 +112,13 @@ linear_pred1 <- coefs["(Intercept)"] + coefs['tacticViolence'] * 1
 # now do intercept + b_1  + b2 * 1
 linear_pred3 <-  coefs["(Intercept)"] + coefs['tacticViolence'] * 1 + coefs["state_supportyes"] * 1
 
-# prediction for violent campaign with the lowest size
+# prediction for non-violent campaign without state support
 1/(1+exp(-linear_pred0))
 
-# prediction for non-violent campaign at lowest size
+# prediction for violent campaign without state support
 1/(1+exp(-linear_pred1))
 
-# prediction for non-violent campaign at second lowest size
+# prediction for violent campaign with state support
 1/(1+exp(-linear_pred3)) 
 ```
 
@@ -153,7 +153,8 @@ Unlike a linear model, marginal effects for logit and probit models will be diff
 
 ```{r}
 
-case_0 <- predict(model, newdata=data.frame(tactic="Non-violence", state_support='yes'), type='response')
+case_0 <- predict(model, newdata=data.frame(tactic="Non-violence", 
+                                            state_support='yes'), type='response')
 
 case_1 <-predict(model, newdata=data.frame(tactic="Violence", state_support='yes'), type='response')
 case_1 - case_0
@@ -163,9 +164,11 @@ case_1 - case_0
 Compare this to the marginal effect when campaign size = 1
 
 ```{r}
-case_2 <- predict(model, newdata=data.frame(tactic="Non-violence", state_support='no'), type='response')
+case_2 <- predict(model, newdata=data.frame(tactic="Non-violence", 
+                                            state_support='no'), type='response')
 
-case_3 <-predict(model, newdata=data.frame(tactic="Violence", state_support='no'), type='response')
+case_3 <-predict(model, newdata=data.frame(tactic="Violence", 
+                                           state_support='no'), type='response')
 case_3 - case_2
 
 ```
@@ -174,8 +177,8 @@ case_3 - case_2
 
 If you just want to summarize the effect for a single coefficient on the "average case", the preferred method is to use the observed values approach. So to get the average effect of change from a from violent to a non-violent campaign, I would
 
-1.  replace every value of prim_method with 0 and then get the predicted probability of success
-2.  replace every value of prim_method with 1 and then get the predicted probability of success
+1.  Set `tactic = "Non-violence"` for every campaign and then get the predicted probability of success
+2.  Set `tactic = "Violence"` for every campaign and then get the predicted probability of success
 3.  Get the average difference between these two scenarios
 
 ```{r}
@@ -213,7 +216,7 @@ mean(diffs)
 
 ```
 
-The average effect of a one unit increase in campaign size is about a 5% increase in the probability of success.
+The average effect of a 1 percentage point increase in support is about a 10 percentage point increase in the probability of success.
 
 ## Getting Predictions
 

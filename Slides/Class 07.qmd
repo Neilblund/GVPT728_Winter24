@@ -718,6 +718,10 @@ preds
 
 ```
 
+
+## Predictions 
+
+
 And automatically generate a nice plot for the predicted results:
 
 ```{r}
@@ -817,8 +821,8 @@ cv_2 <- train(outcome ~  VIOL , data=navco,
 ### Prediction on held-out data
 
 ```{r}
-cv_0
-cv_1
+cv_0$results
+cv_1$results
 cv_2$results[1,]
 
 
