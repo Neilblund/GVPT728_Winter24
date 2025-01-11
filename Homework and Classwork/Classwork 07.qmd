@@ -62,7 +62,7 @@ navco<-set_variable_labels(navco,
                            'goal_type'  = 'Campaign goal',
                            "outcome" = 'Campaign outcome',
                            "tactic" = "Primary tactic",
-                           "percent_pop" = "% national population at peak",
+                           "percent_pop" = "% participation at peak",
                            'tactic_type' = "Primary tactic",
                            "state_support" = "Recieved Military or economic aid"
                            )
@@ -224,16 +224,41 @@ We can get averaged predictions over the observed values using the `predict_resp
 
 ```{r}
 preds<-predict_response(model, 
-                        terms="tactic",  # prediction at all values of percent_pop
-                        margin='empirical')  # with these values at 1 and 1
+                        terms="tactic",  # predictions for violent vs. non-violent
+                        margin='empirical')  # marginalizing across 
 
 plot(preds)
 
 ```
+Or I can plot at different values of a continuous covariate: 
+
+```{r}
+
+preds<-predict_response(model2, 
+                        terms="percent_pop[all]",  # prediction at all values of percent_pop
+                        margin='empirical')  # with these values at 1 and 1
 
 
+plot(preds, 
+     show_data=TRUE, 
+     jitter=.01) 
+
+```
+Or plot the effect across different values of tactic: 
+
+```{r}
+
+preds<-predict_response(model2, 
+                        terms=c("percent_pop[all]", "tactic"),  # prediction at all values of percent_pop
+                        margin='empirical')  # with these values at 1 and 1
 
 
+plot(preds, 
+     show_data=TRUE, 
+     jitter=.01) 
+
+
+```
 
 
 ## Using MarginalEffects
@@ -282,7 +307,16 @@ complex_model <- glm(outcome~tactic + goal_type, data = navco, family = "binomia
 
 avg_comparisons(complex_model)
 
+```
 
+We can get predictions across all of these values with: 
+
+```{r}
+
+predict_response(complex_model, term=c('goal_type', 
+                                       'tactic'
+                                       ),margin='empirical')|>
+  plot()
 
 
 ```
@@ -293,12 +327,19 @@ The default delta-method standard errors should be fine for most use cases. Howe
 
 ```{r, cache=T}
 
+
+
 simulated<-avg_comparisons(model)|>
   inferences(method='boot')
 
 
+
+simulated$xlabels<-sprintf("%s (%s)", simulated$term, simulated$contrast)
+
+
+
 posterior_draws(simulated)|>
-  ggplot(aes(x=draw, y=term)) +
+  ggplot(aes(x=draw, y=xlabels)) +
   stat_halfeye() +
   theme_minimal() +
   xlab("marginal effect of one unit increase in x on probability of campaign success")
