@@ -1,5 +1,5 @@
 ---
-title: "Other limited dependent variable models"
+title: "Count models"
 date: last-modified
 author: Neil Lund
 format:
@@ -67,7 +67,11 @@ gtd_counts<-gtd_counts|>drop_na()
 
 ```
 
-# Count models
+# Counts
+
+
+::::: columns
+::: {.column width="50%"}
 
 Count models can be used to model outcomes that range from 0 to $\infty$. These tend to be more common in international relations, but it includes things like:
 
@@ -80,6 +84,16 @@ Count models can be used to model outcomes that range from 0 to $\infty$. These 
 
 -   Number of years between coups (although this may be classified as a survival model)
 :::
+:::
+
+::: {.column width="50%"}
+![](https://upload.wikimedia.org/wikipedia/en/2/29/Count_von_Count_kneeling.png)
+:::
+:::::
+
+
+
+
 
 ## Poisson Distribution
 
