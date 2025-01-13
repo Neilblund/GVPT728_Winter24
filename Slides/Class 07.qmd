@@ -482,7 +482,7 @@ Z<- rnorm(N, 0 ,1)
 ystar<-X * 4  + Z * 2
 y_logit <- (ystar + rlogis(N))>0
 model1<-glm(y_logit ~ X, family=binomial(link = logit))
-model2<-glm(y_logit ~ X +Z, family=binomial(link = logit))
+model2<-glm(y_logit ~ X + Z, family=binomial(link = logit))
 ```
 
 ```{r, echo=FALSE}
@@ -700,7 +700,6 @@ Getting a standard error by hand is a bit of a pain here. We could bootstrap! Ho
 
 The [`ggeffects`](https://strengejacke.github.io/ggeffects/) package automates a lot of the process here:
 
-
 ### Predictions
 
 We can get adjusted predictions and confidence intervals with one function:
@@ -718,9 +717,7 @@ preds
 
 ```
 
-
-## Predictions 
-
+## Predictions
 
 And automatically generate a nice plot for the predicted results:
 
@@ -757,8 +754,6 @@ avg_comparisons(navco_mod2)
 ```
 
 ### Marginal effects plots
-
-
 
 ```{r, echo=T}
 
