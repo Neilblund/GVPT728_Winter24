@@ -614,7 +614,11 @@ huxtable::huxreg("true model"=true_model,
 
 ### Collider bias
 
-This might seem like an odd thing to do, but it actually comes up a lot in discussions of discrimination: people will advocate for examining disparities *after* controlling for things that (like job role) that are themselves downstream from discrimination. In a sense, this is telling people to "measure discrimination after controlling for discrimination"
+Selection problems can cause biased estimates. Including a control for a collider has a similar impact.
+
+This might seem like an odd thing to do, but it actually comes up a lot! 
+
+For instance in discussions of discrimination: people will advocate for examining wage disparities *after* controlling for things that (like job title) that are themselves downstream from discrimination and wages.
 
 ### Collider bias
 
