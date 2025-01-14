@@ -5,15 +5,32 @@ author: Neil Lund
 format:
   revealjs:
     theme: [default, custom_styles]
-    df-print: paged
+    width: 1280
+    height: 720
+    df-print: tibble
+    scrollable: true
     smaller: true
     slide-number: true
     header: 
     header-logo: images/informal_seal_transparent.webp
     self-contained: true
+    mermaid:
+      theme: forest
+filters:
+  - reveal-header
+  - pseudocode
 code-annotations: select
 slide-level: 3
+execute:
+  echo: true
 ---
+
+```{css, echo = FALSE}
+.output {
+max-height: 500px;
+overflow-y: scroll;
+}
+```
 
 ```{r setup, include=FALSE }
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
