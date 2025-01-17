@@ -1,19 +1,34 @@
 ---
 title: "Difference in Difference models"
-date: last-modified
-author: Neil Lund
 format:
   revealjs:
-    theme: [default, custom_styles]
-    df-print: paged
+    theme: [moon, custom_styles]
+    width: 1280
+    height: 720
+    df-print: tibble
+    scrollable: true
     smaller: true
     slide-number: true
     header: 
     header-logo: images/informal_seal_transparent.webp
     self-contained: true
+    mermaid:
+      theme: forest
+filters:
+  - reveal-header
+  - pseudocode
 code-annotations: select
 slide-level: 3
+execute:
+  echo: true
 ---
+
+```{css, echo = FALSE}
+.output {
+max-height: 500px;
+overflow-y: scroll;
+}
+```
 
 ```{r setup, include=FALSE }
 knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
@@ -331,6 +346,24 @@ Results (reproduced by Angrist and Krueger)
 
 -   In practice, this is as simple as adding an additional control to a regression.
 
+
+## Considerations
+
+-   In general, it makes sense to just stick with the linear probability model, despite its flaws
+
+-   Simplest setup is the pre vs. post treatment cross-sectional case.
+
+-   Biggest assumption is the parallel trend. Visual examination can help, especially if you have observations for prior outcomes
+
+
+
+
+### Staggered exposure
+
+Including multiple years and cases with staggered treatments can make it easier to justify the parallel trends assumption. "Eventually treated" units are often a more sensible comparison case for units that have been recently treated.
+
+However, there's an issue with "early treated" and "late treated" units being weighed differently in the results.
+
 ### Staggered exposure
 
 ```{r}
@@ -377,16 +410,4 @@ mpdta|>
 
 ```
 
-### Staggered exposure
 
-Including multiple years and cases with staggered treatments can make it easier to justify the parallel trends assumption. "Eventually treated" units are often a more sensible comparison case for units that have been recently treated.
-
-However, there's an issue with "early treated" and "late treated" units being weighed differently in the results.
-
-## Considerations
-
--   In general, it makes sense to just stick with the linear probability model, despite its flaws
-
--   Simplest setup is the pre vs. post treatment cross-sectional case.
-
--   Biggest assumption is the parallel trend. Visual examination can help, especially if you have observations for prior outcomes
