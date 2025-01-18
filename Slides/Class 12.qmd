@@ -109,7 +109,7 @@ This is a problem with studying basically any public health intervention: epidem
 
 :::: {.column width="50%"}
 ::: fragment
-![](https://coimages.sciencemuseumgroup.org.uk/images/138/medium_1975_0462__0002_.jpg)
+![](images/southwark_cartoon.jpg)
 
 John Edwards "Sovereign of scented streams"
 :::
@@ -346,7 +346,6 @@ Results (reproduced by Angrist and Krueger)
 
 -   In practice, this is as simple as adding an additional control to a regression.
 
-
 ## Considerations
 
 -   In general, it makes sense to just stick with the linear probability model, despite its flaws
@@ -354,9 +353,6 @@ Results (reproduced by Angrist and Krueger)
 -   Simplest setup is the pre vs. post treatment cross-sectional case.
 
 -   Biggest assumption is the parallel trend. Visual examination can help, especially if you have observations for prior outcomes
-
-
-
 
 ### Staggered exposure
 
@@ -409,5 +405,3 @@ mpdta|>
   scale_fill_manual(values=c("#56B4E9", "#D55E00"))
 
 ```
-
-
